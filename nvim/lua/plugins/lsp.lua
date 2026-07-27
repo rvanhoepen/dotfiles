@@ -2,6 +2,14 @@ return {
   "neovim/nvim-lspconfig",
   opts = {
     servers = {
+      ["*"] = {
+        capabilities = vim.lsp.protocol.make_client_capabilities(),
+      },
+      gopls = {
+        init_options = {
+          semanticTokens = true,
+        },
+      },
       intelephense = {
         filetypes = { "php", "blade" },
         settings = {
