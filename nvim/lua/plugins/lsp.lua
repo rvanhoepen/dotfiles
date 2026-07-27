@@ -6,6 +6,13 @@ return {
         capabilities = vim.lsp.protocol.make_client_capabilities(),
       },
       gopls = {
+        capabilities = {
+          workspace = {
+            didChangeWatchedFiles = {
+              dynamicRegistration = true,
+            },
+          },
+        },
         init_options = {
           semanticTokens = true,
         },
