@@ -27,8 +27,12 @@ local function is_pest_file(file_path)
   return normalize_path(file_path):match("/tests/.+Test%.php$") ~= nil
 end
 
+local function is_go_test_file(file_path)
+  return normalize_path(file_path):match("_test%.go$") ~= nil
+end
+
 local function is_test_file(file_path)
-  return is_vitest_file(file_path) or is_elixir_test_file(file_path) or is_pest_file(file_path)
+  return is_vitest_file(file_path) or is_elixir_test_file(file_path) or is_pest_file(file_path) or is_go_test_file(file_path)
 end
 
 local function file_exists(file_path)
@@ -158,12 +162,27 @@ local function pest_candidates(source_file)
   return {}
 end
 
+local function go_candidates(source_file)
+  local path = normalize_path(source_file)
+  local directory, name = path:match("^(.+)/([^/]+)%.go$")
+
+  if not directory or not name or name:match("_test$") then
+    return {}
+  end
+
+  return {
+    string.format("%s/%s_test.go", directory, name),
+    string.format("%s/tests/%s_test.go", directory, name),
+  }
+end
+
 local function related_test_candidates(source_file)
   local candidates = {}
 
   vim.list_extend(candidates, vitest_candidates(source_file))
   vim.list_extend(candidates, elixir_candidates(source_file))
   vim.list_extend(candidates, pest_candidates(source_file))
+  vim.list_extend(candidates, go_candidates(source_file))
 
   return candidates
 end
@@ -307,6 +326,7 @@ return {
       "marilari88/neotest-vitest",
       "V13Axel/neotest-pest",
       "jfpedroza/neotest-elixir",
+      "fredrikaverpil/neotest-golang",
     },
     opts = function()
       local vitest = require("neotest-vitest")({
@@ -340,6 +360,7 @@ return {
           require("neotest-elixir")({
             mix_task = "test",
           }),
+          require("neotest-golang")({}),
           vitest,
         },
       }
