@@ -188,8 +188,88 @@ local function find(source_file)
   end
 end
 
+local function nearest_go_function(file_path, row)
+  local buffer = vim.fn.bufnr(file_path)
+
+  if buffer == -1 or not vim.api.nvim_buf_is_loaded(buffer) then
+    return
+  end
+
+  local parser_ok, parser = pcall(vim.treesitter.get_parser, buffer, "go")
+
+  if not parser_ok or not parser then
+    return
+  end
+
+  local tree = parser:parse()[1]
+
+  if not tree then
+    return
+  end
+
+  local nearest_name
+  local nearest_distance
+
+  local function visit(node)
+    local node_type = node:type()
+
+    if node_type == "function_declaration" or node_type == "method_declaration" then
+      local name_node = node:field("name")[1]
+
+      if name_node then
+        local start_row, _, end_row = node:range()
+        local distance = row < start_row and start_row - row or row > end_row and row - end_row or 0
+
+        if nearest_distance == nil or distance < nearest_distance then
+          nearest_name = vim.treesitter.get_node_text(name_node, buffer)
+          nearest_distance = distance
+        end
+      end
+    end
+
+    for child in node:iter_children() do
+      visit(child)
+    end
+  end
+
+  visit(tree:root())
+  return nearest_name
+end
+
+local function go_test_position(source_file, test_file, row)
+  local path = normalize_path(source_file)
+
+  if not path:match("%.go$") or path:match("_test%.go$") then
+    return
+  end
+
+  local function_name = nearest_go_function(source_file, row)
+
+  if not function_name then
+    return
+  end
+
+  local test_name = "Test" .. function_name:gsub("^%l", string.upper)
+
+  for _, line in ipairs(vim.fn.readfile(test_file)) do
+    if line:match("^%s*func%s+" .. test_name .. "%s*%(") then
+      return test_file .. "::" .. test_name
+    end
+  end
+end
+
 function M.resolve(file_path)
   return is_test_file(file_path) and file_path or find(file_path)
+end
+
+function M.resolve_position(file_path, row)
+  local test_file = M.resolve(file_path)
+
+  if not test_file then
+    return
+  end
+
+  return go_test_position(file_path, test_file, row) or test_file
 end
 
 function M.edit()

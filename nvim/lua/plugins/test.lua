@@ -1,6 +1,6 @@
 local related_tests = require("util.related_tests")
 
-local function clean_output_panel()
+local function clean_output_panel(results)
   local ok, neotest = pcall(require, "neotest")
 
   if not ok or not neotest.output_panel then
@@ -14,6 +14,31 @@ local function clean_output_panel()
   end
 
   local lines = vim.api.nvim_buf_get_lines(output_buffer, 0, -1, false)
+  local has_output = vim.iter(lines):any(function(line)
+    return line:match("%S") ~= nil
+  end)
+
+  if not has_output and results then
+    local fallback = {}
+
+    for _, result in pairs(results) do
+      if result.status == "failed" and result.output and vim.fn.filereadable(result.output) == 1 then
+        local result_lines = vim.fn.readfile(result.output)
+
+        if #result_lines > #fallback then
+          fallback = result_lines
+        end
+      end
+    end
+
+    if #fallback > 0 then
+      pcall(vim.api.nvim_set_option_value, "modifiable", true, { buf = output_buffer })
+      pcall(vim.api.nvim_buf_set_lines, output_buffer, 0, -1, false, fallback)
+      pcall(vim.api.nvim_set_option_value, "modifiable", false, { buf = output_buffer })
+      lines = fallback
+    end
+  end
+
   local last_line = #lines
 
   while last_line > 1 and lines[last_line]:match("^%s*$") do
@@ -63,10 +88,10 @@ end
 
 local function run_test_file_or_related()
   local file = vim.fn.expand("%:p")
-  local test_file = related_tests.resolve(file)
+  local position = related_tests.resolve_position(file, vim.api.nvim_win_get_cursor(0)[1] - 1)
 
-  if test_file then
-    run_neotest_file(test_file)
+  if position then
+    run_neotest_file(position)
     return
   end
 
@@ -103,9 +128,11 @@ return {
         },
         consumers = {
           related_test_output_cleanup = function(client)
-            client.listeners.results = function(_, _, partial)
+            client.listeners.results = function(_, results, partial)
               if not partial then
-                vim.schedule(clean_output_panel)
+                vim.schedule(function()
+                  clean_output_panel(results)
+                end)
               end
             end
           end,
@@ -123,6 +150,42 @@ return {
       }
     end,
     keys = {
+      {
+        "<leader>tt",
+        function()
+          local neotest = require("neotest")
+          neotest.run.run(vim.fn.expand("%"))
+          neotest.output_panel.open()
+        end,
+        desc = "Run File (Neotest)",
+      },
+      {
+        "<leader>tT",
+        function()
+          local neotest = require("neotest")
+          neotest.run.run(vim.uv.cwd())
+          neotest.output_panel.open()
+        end,
+        desc = "Run All Test Files (Neotest)",
+      },
+      {
+        "<leader>tr",
+        function()
+          local neotest = require("neotest")
+          neotest.run.run()
+          neotest.output_panel.open()
+        end,
+        desc = "Run Nearest (Neotest)",
+      },
+      {
+        "<leader>tl",
+        function()
+          local neotest = require("neotest")
+          neotest.run.run_last()
+          neotest.output_panel.open()
+        end,
+        desc = "Run Last (Neotest)",
+      },
       { "<leader>tR", run_test_file_or_related, desc = "Run Related Test" },
       { "<leader>tG", related_tests.edit, desc = "Go to Related Test" },
     },
