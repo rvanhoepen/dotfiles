@@ -1,5 +1,11 @@
 local related_tests = require("util.related_tests")
 
+local function test_cwd(file)
+  if file:match("%.exs?$") then
+    return vim.fs.root(file, "mix.exs")
+  end
+end
+
 local function clean_output_panel(results)
   local ok, neotest = pcall(require, "neotest")
 
@@ -68,7 +74,7 @@ local function run_neotest_file(file)
   vim.notify("Running " .. vim.fn.fnamemodify(file, ":~:."), vim.log.levels.INFO)
   neotest.output_panel.clear()
   clean_output_panel()
-  neotest.run.run(file)
+  neotest.run.run({ file, cwd = test_cwd(file) })
   neotest.output_panel.open()
 
   local output_buffer = neotest.output_panel.buffer()
@@ -120,6 +126,9 @@ return {
       vitest.is_test_file = related_tests.is_vitest_file
 
       return {
+        discovery = {
+          enabled = false,
+        },
         output = {
           open_on_run = false,
         },
@@ -154,7 +163,8 @@ return {
         "<leader>tt",
         function()
           local neotest = require("neotest")
-          neotest.run.run(vim.fn.expand("%"))
+          local file = vim.fn.expand("%:p")
+          neotest.run.run({ file, cwd = test_cwd(file) })
           neotest.output_panel.open()
         end,
         desc = "Run File (Neotest)",
@@ -172,7 +182,8 @@ return {
         "<leader>tr",
         function()
           local neotest = require("neotest")
-          neotest.run.run()
+          local file = vim.fn.expand("%:p")
+          neotest.run.run({ cwd = test_cwd(file) })
           neotest.output_panel.open()
         end,
         desc = "Run Nearest (Neotest)",

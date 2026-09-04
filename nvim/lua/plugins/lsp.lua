@@ -1,18 +1,14 @@
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = false
+
 return {
   "neovim/nvim-lspconfig",
   opts = {
     servers = {
       ["*"] = {
-        capabilities = vim.lsp.protocol.make_client_capabilities(),
+        capabilities = capabilities,
       },
       gopls = {
-        capabilities = {
-          workspace = {
-            didChangeWatchedFiles = {
-              dynamicRegistration = true,
-            },
-          },
-        },
         init_options = {
           semanticTokens = true,
         },
