@@ -2,6 +2,7 @@
   "extras": [
     "lazyvim.plugins.extras.lang.go",
     "lazyvim.plugins.extras.lang.php",
+    "lazyvim.plugins.extras.lang.typescript",
     "lazyvim.plugins.extras.test.core",
     "lazyvim.plugins.extras.util.mini-hipatterns"
   ],

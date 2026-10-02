@@ -13,6 +13,15 @@ return {
           semanticTokens = true,
         },
       },
+      vtsls = {
+        settings = {
+          typescript = {
+            inlayHints = {
+              variableTypes = { enabled = true },
+            },
+          },
+        },
+      },
       intelephense = {
         filetypes = { "php", "blade" },
         settings = {
