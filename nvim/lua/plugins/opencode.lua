@@ -1,19 +1,36 @@
+local opencode_cmd = "opencode"
+
+local terminal_opts = {
+  win = {
+    position = "right",
+    enter = false,
+  },
+}
+
 return {
   {
     "nickjvandyke/opencode.nvim",
-    version = "*", -- Latest stable release
+    -- Use main branch for OpenCode v2
     dependencies = {
       {
-        -- `snacks.nvim` integration is recommended, but optional
-        ---@module "snacks" <- Loads `snacks.nvim` types for configuration intellisense
         "folke/snacks.nvim",
         optional = true,
         opts = {
-          input = {}, -- Enhances `ask()`
-          picker = { -- Enhances `select()`
+          input = {},
+          picker = {
             actions = {
-              opencode_send = function(...)
-                return require("opencode").snacks_picker_send(...)
+              opencode_send = function(picker)
+                local items = vim.tbl_map(function(item)
+                  return item.file
+                      and require("opencode").format({
+                        path = item.file,
+                        from = item.pos,
+                        to = item.end_pos,
+                      })
+                    or item.text
+                end, picker:selected({ fallback = true }))
+
+                require("opencode").prompt(table.concat(items, ", ") .. " ")
               end,
             },
             win = {
@@ -27,26 +44,38 @@ return {
         },
       },
     },
+
     init = function()
       ---@type opencode.Opts
       vim.g.opencode_opts = {
-        -- Your configuration, if any; goto definition on the type or field for details
+        server = {
+          start = function()
+            require("snacks.terminal").open(opencode_cmd, terminal_opts)
+          end,
+        },
       }
 
-      vim.o.autoread = true -- Required for `opts.events.reload`
+      vim.o.autoread = true
 
-      -- You may want these if you use the opinionated `<C-a>` and `<C-x>` keymaps above — otherwise consider `<leader>o…` (and remove terminal mode from the `toggle` keymap)
-      vim.keymap.set("n", "+", "<C-a>", { desc = "Increment under cursor", noremap = true })
-      vim.keymap.set("n", "-", "<C-x>", { desc = "Decrement under cursor", noremap = true })
+      vim.keymap.set("n", "+", "<C-a>", {
+        desc = "Increment under cursor",
+        noremap = true,
+      })
+
+      vim.keymap.set("n", "-", "<C-x>", {
+        desc = "Decrement under cursor",
+        noremap = true,
+      })
     end,
+
     keys = {
       {
         "<C-a>",
         function()
-          require("opencode").ask("@this: ", { submit = true })
+          require("opencode").ask("@this: ")
         end,
         mode = { "n", "x" },
-        desc = "Ask opencode…",
+        desc = "Ask OpenCode",
       },
       {
         "<C-x>",
@@ -54,15 +83,15 @@ return {
           require("opencode").select()
         end,
         mode = { "n", "x" },
-        desc = "Execute opencode action…",
+        desc = "Execute OpenCode action",
       },
       {
         "<C-.>",
         function()
-          require("opencode").toggle()
+          require("snacks.terminal").toggle(opencode_cmd, terminal_opts)
         end,
         mode = { "n", "t" },
-        desc = "Toggle opencode",
+        desc = "Toggle OpenCode",
       },
       {
         "go",
@@ -71,7 +100,7 @@ return {
         end,
         mode = { "n", "x" },
         expr = true,
-        desc = "Add range to opencode",
+        desc = "Add range to OpenCode",
       },
       {
         "goo",
@@ -79,21 +108,21 @@ return {
           return require("opencode").operator("@this ") .. "_"
         end,
         expr = true,
-        desc = "Add line to opencode",
+        desc = "Add line to OpenCode",
       },
       {
         "<S-C-u>",
         function()
           require("opencode").command("session.half.page.up")
         end,
-        desc = "Scroll opencode up",
+        desc = "Scroll OpenCode up",
       },
       {
         "<S-C-d>",
         function()
           require("opencode").command("session.half.page.down")
         end,
-        desc = "Scroll opencode down",
+        desc = "Scroll OpenCode down",
       },
     },
   },
